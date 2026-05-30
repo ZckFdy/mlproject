@@ -48,8 +48,8 @@ jobs:
       - name: Save mlruns with Git LFS to repo
         run: |
           # Menggunakan tanda kutip ganda agar variabel rahasia dibaca sebagai string utuh
-          git config --global user.name "${{ secrets.username }}"
-          git config --global user.email "${{ secrets.email }}"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
           # 2. Inisialisasi Git LFS di Virtual Machine Runner
           git lfs install
