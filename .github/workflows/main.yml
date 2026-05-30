@@ -59,18 +59,17 @@ jobs:
             echo "Tidak ada perubahan artefak mlruns yang baru."
           fi
 
-      # 6. 🎯 AMBIL RUN_ID: Ekstrak folder terbaru yang benar-benar baru dibuat
-      - name: Get latest MLflow run_id
+      # 6. COMBINED STEP: Ambil RUN_ID dan langsung build Docker dalam 1 baris aman
+      - name: Build Docker Model from Latest Run
         run: |
+          # Cari folder run_id terbaru
           LATEST_DIR=$(ls -td mlruns/0/*/ | head -n 1)
-          RUN_ID=$(basename "$LATEST_DIR")
-          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-          echo "Latest run_id didapatkan: $RUN_ID"
+          REAL_RUN_ID=$(basename "$LATEST_DIR")
           
-      # 7. BUILD DOCKER: Bangun Docker Image menggunakan RUN_ID tersebut
-      - name: Build Docker Model
-        run: |
-          mlflow models build-docker -m runs:/${{ env.RUN_ID }}/model --name "cc" --env-manager local
+          echo "Memulai build Docker untuk RUN_ID: $REAL_RUN_ID"
+          
+          # Langsung suntikkan variabel lokal Bash ke dalam perintah MLflow
+          mlflow models build-docker -m "runs:/$REAL_RUN_ID/model" --name "cc" --env-manager local
 
       # 8. DOCKER HUB LOGIN: Autentikasi ke Docker Hub
       - name: Log in to Docker Hub
