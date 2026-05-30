@@ -9,7 +9,8 @@ on:
       - main
 
 env:
-  CSV_URL: "MLproject/train_pca.csv"
+  # 🛠️ PERBAIKAN 1: Jalur langsung ke root karena file ada di root repositori
+  CSV_URL: "train_pca.csv"
   TARGET_VAR: "Credit_Score"
 
 jobs:
@@ -29,24 +30,26 @@ jobs:
       # Check Env Variables
       - name: Check Env
         run: |
-          echo $CSV_URL
-      # Install mlflow
+          echo "Target CSV: $CSV_URL"
+
+      # Install mlflow dan dependensi pendukung pembentukan image
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install mlflow  
-          
-      # Run as a mlflow project
+          pip install mlflow virtualenv
+
+      # 🛠️ PERBAIKAN 2: Jalankan dari root (.) karena file MLproject ada di luar
       - name: Run mlflow project
         run: |
-          mlflow run MLproject --env-manager=local 
+          mlflow run . --env-manager=local 
       
-      # Get latest run_id
+      # 🛠️ PERBAIKAN 3: Ambil run_id terbaru secara aman menggunakan basename
       - name: Get latest MLflow run_id
         run: |
-          RUN_ID=$(ls -td mlruns/0/*/ | head -n 1 | cut -d'/' -f3)
+          LATEST_DIR=$(ls -td mlruns/0/*/ | head -n 1)
+          RUN_ID=$(basename "$LATEST_DIR")
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-          echo "Latest run_id: $RUN_ID"
+          echo "Latest run_id didapatkan: $RUN_ID"
           
       # Build Docker Model
       - name: Build Docker Model
