@@ -7,10 +7,10 @@ on:
   pull_request:
     branches:
       - main
-
+ 
 env:
   CSV_URL: "MLproject/train_pca.csv"
-
+ 
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -39,9 +39,9 @@ jobs:
       # Run as a mlflow project
       - name: Run mlflow project
         run: |
-          mlflow run . --env-manager=local 
-
-       # Save models to GitHub Repository
+          mlflow run MLproject --env-manager=local 
+ 
+      # Save models to GitHub Repository
       - name: Save mlruns to repo
         run: |
           git config --global user.name ${{ secrets.username }}
