@@ -1,4 +1,4 @@
-name: CI/CD MLflow
+name: CI/CD MLflow to Docker Hub
 
 on:
   push:
@@ -9,41 +9,57 @@ on:
       - main
 
 env:
-  # 🛠️ PERBAIKAN 1: Jalur langsung ke root karena file ada di root repositori
   CSV_URL: "train_pca.csv"
   TARGET_VAR: "Credit_Score"
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    
+    # ⚙️ WAJIB: Izinkan GitHub Actions menulis balik log mlruns ke repositori Anda
+    permissions:
+      contents: write
 
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE
+      # 1. Checkout Repositori
       - uses: actions/checkout@v3
 
-      # Setup Python 3.12.7
+      # 2. Setup Python 3.12.7
       - name: Set up Python 3.12.7
         uses: actions/setup-python@v4
         with:
           python-version: "3.12.7"
-      
-      # Check Env Variables
-      - name: Check Env
-        run: |
-          echo "Target CSV: $CSV_URL"
 
-      # Install mlflow dan dependensi pendukung pembentukan image
+      # 3. Install Dependensi Lengkap
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install mlflow virtualenv
 
-      # 🛠️ PERBAIKAN 2: Jalankan dari root (.) karena file MLproject ada di luar
+      # 4. Jalankan MLflow Project (Proses Training)
       - name: Run mlflow project
         run: |
           mlflow run . --env-manager=local 
-      
-      # 🛠️ PERBAIKAN 3: Ambil run_id terbaru secara aman menggunakan basename
+
+      # 5. 🔥 AMANKAN ARTEFAK: Simpan hasil training mlruns ke Repo via Git LFS
+      - name: Save mlruns with Git LFS to repo
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          git lfs install
+          git lfs track "mlruns/**/*.pkl"
+          git add .gitattributes
+          git add mlruns/
+          
+          if ! git diff-index --quiet HEAD --; then
+            git commit -m "Save mlruns logs and large model binary using Git LFS [skip ci]"
+            git push origin main
+          else
+            echo "Tidak ada perubahan artefak mlruns yang baru."
+          fi
+
+      # 6. 🎯 AMBIL RUN_ID: Ekstrak folder terbaru yang benar-benar baru dibuat
       - name: Get latest MLflow run_id
         run: |
           LATEST_DIR=$(ls -td mlruns/0/*/ | head -n 1)
@@ -51,24 +67,24 @@ jobs:
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
           echo "Latest run_id didapatkan: $RUN_ID"
           
-      # Build Docker Model
+      # 7. BUILD DOCKER: Bangun Docker Image menggunakan RUN_ID tersebut
       - name: Build Docker Model
         run: |
-          mlflow models build-docker --model-uri "runs:/$RUN_ID/model" --name "cc" 
+          mlflow models build-docker -m runs:/${{ env.RUN_ID }}/model --name "cc" --env-manager local
 
-      # Login to Docker Hub
+      # 8. DOCKER HUB LOGIN: Autentikasi ke Docker Hub
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      # Tag the Docker image
+      # 9. TAG IMAGE: Beri label username Anda
       - name: Tag Docker Image
         run: |
           docker tag cc ${{ secrets.DOCKER_HUB_USERNAME }}/cc:latest
 
-      # Push Docker image to Docker Hub
+      # 10. PUSH IMAGE: Terbangkan kontainer ke Docker Hub!
       - name: Push Docker Image
         run: |
           docker push ${{ secrets.DOCKER_HUB_USERNAME }}/cc:latest
